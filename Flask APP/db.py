@@ -8,12 +8,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory_db.sqlite3'  # Chan
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-
 class AuthUser(db.Model):
     __tablename__ = 'auth_users'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False, unique=True)
+    password = db.Column(db.String(255), nullable=False)
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -60,43 +60,3 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     print("Database and tables created successfully!")
-
-
-
-# ------------------------------------------------------------------------------------------------------------------------
-
-''' DATABSE STRUCTURE REPRESANTATION '''
-
-@app.route('/Model/database')
-def index():
-    with db.engine.connect() as connection:
-        result = connection.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [row[0] for row in result]
-    
-    return jsonify({"tables": tables})  
-
-
-@app.route('/Model/database/tables')
-def list_tables_and_columns():
-    with db.engine.connect() as connection:
-        # Get all table names
-        result = connection.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [row[0] for row in result]
-
-        # Get columns for each table
-        table_details = {}
-        for table in tables:
-            columns_result = connection.execute(f"PRAGMA table_info({table});")
-            columns = [
-                {
-                    "name": col[1],  # Column name
-                    "type": col[2],  # Data type
-                    "not_null": bool(col[3]),  # Is NOT NULL
-                    "default_value": col[4],  # Default value (if any)
-                    "primary_key": bool(col[5])  # Is Primary Key
-                }
-                for col in columns_result
-            ]
-            table_details[table] = columns
-
-    return jsonify(table_details) 
