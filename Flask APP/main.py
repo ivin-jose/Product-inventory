@@ -360,6 +360,14 @@ def product_details(product_id):
     
     else:
         return redirect('/login')  # Redirect to login page if not logged in
+    
+
+# ---------------------------------------------------------------------------------------------------
+
+# sell product
+@app.route('/sell-product/<id>')
+def sell_product(id):
+    return f"Product with ID {id} is being sold!"
 
 
 

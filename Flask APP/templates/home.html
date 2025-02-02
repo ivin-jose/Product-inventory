@@ -11,13 +11,16 @@
 </head>
 <body>
 
-    <br>
-<a href="{{ url_for('add_stock')}}" class="btn btn-info" id="add_stock_btn">Add New Stock</a>
-<br>
-<br>
 
-    {% if products %}
-        <table class="table table-striped">
+
+<br>
+<a href="{{ url_for('add_stock')}}" class="btn btn-info" id="add_stock_btn">Add New Stock</a> 
+<span id="total_products">Total Products: {{ products|length }}</span>
+<br><br>
+
+{% if products %}
+    <div id="pagination-wrapper">
+        <table class="table table-striped" id="product-table">
             <thead>
                 <tr>
                     <th>Product ID</th>
@@ -29,16 +32,14 @@
                     <th>Details</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="product-body">
                 {% for product in products %}
-                    <tr>
+                    <tr class="product-row">
                         <td>{{ product.product_id }}</td>
                         <td>{{ product.product_code }}</td>
                         <td>{{ product.product_name }}</td>
-                        <td><img src="{{ url_for('static', filename='uploads/' + product.product_image[0]) }}" 
-                            alt="{{ product.product_image[0] }}" style="width: 50px; height: 50px;"></td>
-                            <td>
-                        
+                        <td><img src="{{ url_for('static', filename='uploads/' + product.product_image[0]) }}" alt="{{ product.product_image[0] }}" style="width: 50px; height: 50px;"></td>
+                        <td>
                             {% for variant in product.variants %}
                                 <strong>{{ variant.variant_name }}:</strong><br>
                                 {% for option in variant.options %}
@@ -47,23 +48,58 @@
                             {% endfor %}
                         </td>
                         <td>
-                            <!-- Edit button (you can link it to an edit page or use modals) -->
-                            <a href="/edit-product/{{ product.id }}" class="btn btn-primary">Edit</a>
-                            <a href="/remove-product/{{ product.id }}" class="btn btn-danger">Remove</a>
+                            <a href="/buy-product/{{ product.id }}" class="btn btn-primary">BUY</a>
+                            <a href="/sell-product/{{ product.id }}" class="btn btn-danger">SELL</a>
                         </td>
                         <td>
-                            <!-- Details button (redirects to a page with detailed product info) -->
                             <a href="/product-details/{{ product.id }}" class="btn btn-info">Details</a>
                         </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
-    {% else %}
-        <p>No products available.</p>
-    {% endif %}
+
+        <div id="pagination-controls">
+            <button id="prev-btn" class="btn btn-secondary" onclick="changePage(-1)">Previous</button>
+            <span id="page-number">Page 1</span>
+            <button id="next-btn" class="btn btn-secondary" onclick="changePage(1)">Next</button>
+        </div>
+    </div>
+{% else %}
+    <p>No products available.</p>
+{% endif %}
+
+<script>
+    const rowsPerPage = 4;
+    let currentPage = 1;
+    const rows = document.querySelectorAll(".product-row");
+
+    function showPage(page) {
+        const startIndex = (page - 1) * rowsPerPage;
+        const endIndex = page * rowsPerPage;
+
+        rows.forEach((row, index) => {
+            if (index >= startIndex && index < endIndex) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        document.getElementById("page-number").textContent = `Page ${page}`;
+        document.getElementById("prev-btn").disabled = page === 1;
+        document.getElementById("next-btn").disabled = page * rowsPerPage >= rows.length;
+    }
+
+    function changePage(direction) {
+        currentPage += direction;
+        showPage(currentPage);
+    }
+
+    // Initially show the first page
+    showPage(currentPage);
+</script>
 
 </body>
 </html>
-
 {% endblock %}

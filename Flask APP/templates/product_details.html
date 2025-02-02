@@ -1,3 +1,5 @@
+
+    
 <h1>Product Details</h1>
 <div>
     <h2>Product Information</h2>
@@ -24,6 +26,6 @@
 <div>
     <h2>Product Images</h2>
     {% for image in images %}
-        <img src="{{ url_for('static', filename='uploads/image') }}" alt="Product Image" width="200">
+        <img src="{{ url_for('static', filename='uploads/' + product['Product Image']) }}" alt="Product Image" width="200">
     {% endfor %}
 </div>
