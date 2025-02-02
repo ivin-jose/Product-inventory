@@ -82,6 +82,12 @@ if __name__ == '__main__':
 # ---------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------
 
+#Invalid pages
+
+@app.errorhandler(404)
+
+def page_not_found(e):
+    return render_template('404-error.html')
 # login page
 
 @app.route('/login', methods=['POST', 'GET'])
@@ -174,6 +180,60 @@ def home():
         return render_template('home.html', products=product_data)
     else:
         return render_template('login.html')
+
+# ---------------------------------------------------------------------------------------------------
+
+
+@app.route('/search_product', methods=['GET', 'POST'])
+def search_product():
+    if 'loggedin' in session:
+        if request.method == "POST":
+            form_data = request.form.get('inputText', '').strip()  # Get and clean input
+
+            # Debugging print (check if input is received)
+            print(f"🔍 Search Query: {form_data}")
+
+            # Fetch products based on search input
+            if form_data:
+                products = Product.query.filter(
+                    (Product.ProductID.ilike(f"%{form_data}%")) |
+                    (Product.ProductCode.ilike(f"%{form_data}%")) |
+                    (Product.ProductName.ilike(f"%{form_data}%"))
+                ).all()
+            else:
+                products = Product.query.all()  # Fetch all products if no search input
+
+            product_data = []
+            for product in products:
+                variants = ProductVariant.query.filter_by(Product=product.id).all()
+                variant_data = []
+
+                for variant in variants:
+                    options = ProductVariantOption.query.filter_by(Variant=variant.id).all()
+                    option_data = [{"option_name": option.OptionName, "quantity": option.quantity} for option in options]
+
+                    variant_data.append({"variant_name": variant.VariantName, "options": option_data})
+
+                # Fetch product images
+                product_images = ProductImage.query.filter_by(Product=product.id).all()
+                image_urls = [img.ImageURL for img in product_images]
+
+                product_data.append({
+                    "id": product.id,
+                    "product_id": product.ProductID,
+                    "product_code": product.ProductCode,
+                    "product_name": product.ProductName,
+                    "product_image": image_urls,
+                    "variants": variant_data,
+                    "created_user": product.CreatedUser,
+                    "created_date": product.CreatedDate.strftime('%Y-%m-%d %H:%M:%S') if product.CreatedDate else None
+                })
+
+            return render_template('home.html', products=product_data)
+
+        return redirect('/home')  # Redirect if GET request
+
+    return render_template('login.html')  # If not logged in, show login page
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -328,7 +388,7 @@ def product_details(product_id):
                 option_data = []
                 for option in options:
                     # Ensure quantity is an integer before adding
-                    option_quantity = int(option.quantity) if option.quantity else 0  # Convert quantity to int if it's not empty
+                    option_quantity = int(float(option.quantity)) if option.quantity else 0  # Convert to float first, then to int
                     option_data.append({
                         "option_name": option.OptionName,
                         "quantity": option_quantity  # Option quantity
@@ -361,7 +421,7 @@ def product_details(product_id):
     
     else:
         return redirect('/login')  # Redirect to login page if not logged in
-    
+
 
 # ---------------------------------------------------------------------------------------------------
 
@@ -406,9 +466,10 @@ def get_variant_options(variant_id):
     ]
     return jsonify(options_data)
 
+# ---------------------------------------------------------------------------------------------------
+
+
 # buy product
-
-
 
 @app.route('/buy-product/<string:product_id>', methods=['GET', 'POST'])
 def buy_product(product_id):
@@ -438,7 +499,58 @@ def buy_product(product_id):
     
     return render_template('buy_product.html', product=product, variants=variants)
 
+# ---------------------------------------------------------------------------------------------------
 
+
+# delete product
+
+from flask import flash, redirect, url_for
+
+@app.route('/delete_product/<string:product_id>', methods=['GET', 'POST'])
+def delete_product(product_id):
+    if 'loggedin' in session:
+        try:
+            # Fetch the product by its ID
+            product = Product.query.filter_by(id=product_id).first()
+
+            if not product:
+                flash(f"Product with ID {product_id} not found", 'danger')
+                return redirect(url_for('home'))  # Return a 404 error if product not found
+
+            # Fetch and delete the related variants and options
+            variants = ProductVariant.query.filter_by(Product=product.id).all()
+            for variant in variants:
+                # Fetch related options and delete them
+                options = ProductVariantOption.query.filter_by(Variant=variant.id).all()
+                for option in options:
+                    db.session.delete(option)  # Delete options
+
+                db.session.delete(variant)  # Delete variant
+
+            # Fetch and delete product images
+            images = ProductImage.query.filter_by(Product=product.id).all()
+            for image in images:
+                db.session.delete(image)  # Delete image
+
+            # Finally, delete the product
+            db.session.delete(product)
+
+            # Commit the changes to the database
+            db.session.commit()
+
+            # Flash success message and redirect to the home page
+            flash(f"Product with ID {product_id} has been successfully deleted.", 'success')
+            return redirect(url_for('home'))
+
+        except Exception as e:
+            db.session.rollback()  # Rollback in case of error
+            print(f"Error: {e}")
+            flash(f"Error deleting product: {e}", 'danger')  # Flash error message
+            return redirect(url_for('home'))  # Redirect after error
+    
+    else:
+        flash("You need to log in to delete a product.", 'warning')  # Flash a warning message
+        return redirect('/login')  # Redirect to login page if not logged in
 
 
 # ---------------------------------------------------------------------------------------------------

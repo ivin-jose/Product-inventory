@@ -11,12 +11,44 @@
 </head>
 <body>
 
-
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="alert-container">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  
 
 <br>
+
+<div style="    display: flex;
+    align-items: center;
+    justify-content: space-around;">
 <a href="{{ url_for('add_stock')}}" class="btn btn-info" id="add_stock_btn">Add New Stock</a> 
-<span id="total_products">Total Products: {{ products|length }}</span>
+
+
+<form action="{{ url_for('search_product') }}" method="POST" style="width: 40%;">
+    <div class="form-group">
+        <input type="text" class="form-control" name="inputText" placeholder="Search product id, code, name">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block" style="background-color: aliceblue; color: black;">Search</button>
+</form>
+
+
+    <span id="total_products">Total Products: <span style="color: #e45000; font-size: 25px;" >{{ products|length }}</span></span>
+</div>
 <br><br>
+
+
+
 
 {% if products %}
     <div id="pagination-wrapper">
@@ -41,10 +73,8 @@
                         <td><img src="{{ url_for('static', filename='uploads/' + product.product_image[0]) }}" alt="{{ product.product_image[0] }}" style="width: 50px; height: 50px;"></td>
                         <td>
                             {% for variant in product.variants %}
-                                <strong>{{ variant.variant_name }}:</strong><br>
-                                {% for option in variant.options %}
-                                    {{ option.option_name }} = {{ option.quantity }}<br>
-                                {% endfor %}
+                                <strong>{{ variant.variant_name }}</strong>,
+                                
                             {% endfor %}
                         </td>
                         <td>
@@ -66,7 +96,8 @@
         </div>
     </div>
 {% else %}
-    <p>No products available.</p>
+    <p style="text-align: center;
+    font-size: 30px;">No products available.</p>
 {% endif %}
 
 <script>

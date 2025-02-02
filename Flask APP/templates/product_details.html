@@ -1,31 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <!-- Link to Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Custom CSS for additional styling */
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
 
-    
-<h1>Product Details</h1>
-<div>
-    <h2>Product Information</h2>
-    <ul>
-        {% for key, value in product.items() %}
-            <li>{{ key }}: {{ value }}</li>
-        {% endfor %}
-        <li><strong>Total Quantity:</strong> {{ product['Total Quantity'] }}</li> <!-- Display total quantity -->
-    </ul>
-</div>
+        .container {
+            margin-top: 30px;
+            width: 50%;
+        }
 
-<div>
-    <h2>Variants</h2>
-    {% for variant in variants %}
-        <p><strong>{{ variant.variant_name }}</strong> (Variant ID: {{ variant['Variant ID'] }})</p>
-        <ul>
-            {% for option in variant.options %}
-                <li>{{ option.option_name }} - Quantity: {{ option.quantity }}</li> <!-- Option and quantity -->
+        .product-header {
+            background-color: #343a40;
+            color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .product-details ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .product-details ul li {
+            margin-bottom: 10px;
+        }
+
+        .variant-list {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .variant-list ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .variant-list ul li {
+            margin-bottom: 5px;
+        }
+
+        .image-container img {
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 10px;
+            width: 500px;
+            height: 500px;
+            object-fit: cover;
+        }
+
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+
+        .variant-title {
+            color: #007bff;
+        }
+
+        .total-quantity {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .product-title {
+            font-size: 2em;
+            font-weight: 600;
+        }
+
+        .btn-back {
+            margin-top: 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+        }
+
+        .btn-back:hover {
+            background-color: #0056b3;
+        }
+
+        /* Modal Custom Style */
+        .modal-content {
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="product-header text-center">
+            <h1 class="product-title">Product Details</h1>
+        </div>
+        
+        <div class="product-details mt-4">
+            <h2>Product Information</h2>
+            <ul class="list-group">
+                {% for key, value in product.items() %}
+                    {% if key != 'Total Stock' %} <!-- Exclude the 'Total Stock' field -->
+                        <li class="list-group-item d-flex justify-content-between">
+                            <strong>{{ key }}:</strong> {{ value }}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                <li class="list-group-item d-flex justify-content-between total-quantity">
+                    <strong>Total Quantity:</strong> {{ product['Total Quantity'] }}
+                </li>
+            </ul>
+        </div>
+
+        <div class="mt-5 variant-list">
+            <h2 class="variant-title">Variants</h2>
+            {% for variant in variants %}
+                <p><strong>{{ variant.variant_name }}</strong></p>
+                <ul class="list-group">
+                    {% for option in variant.options %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <strong>{{ option.option_name }}:</strong> Quantity: {{ option.quantity }}
+                        </li>
+                    {% endfor %}
+                </ul>
             {% endfor %}
-        </ul>
-    {% endfor %}
-</div>
+        </div>
 
-<div>
-    <h2>Product Images</h2>
-    {% for image in images %}
-        <img src="{{ url_for('static', filename='uploads/' + product['Product Image']) }}" alt="Product Image" width="200">
-    {% endfor %}
-</div>
+        <div class="mt-5 image-container">
+            <h2>Product Images</h2>
+            {% for image in images %}
+                <img src="{{ url_for('static', filename='uploads/' + product['Product Image']) }}" alt="Product Image" class="img-fluid">
+            {% endfor %}
+        </div>
+
+        <style>
+            #delete_btn {
+                background-color: red;
+            }
+        </style>
+
+        <div class="text-center mt-4">
+            <button class="btn btn-back" id="delete_btn" data-toggle="modal" data-target="#deleteModal">Delete Product</button>
+            <a href="/" class="btn btn-back">Back to Products</a>
+        </div>
+        
+        <!-- Modal -->
+        <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel">Delete Product</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete this product permanently?<br>
+                        Product its variants and the variant options will be deleted permanently!!
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+
+                        <!-- Product Information and Details -->
+                        {% for key, value in product.items() %}
+                            {% if key == 'Product ID' %}
+                                <!-- Delete Button -->
+                                <a href="{{ url_for('delete_product', product_id=value) }}" class="btn btn-danger" id="delete_btn">Yes, Delete</a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br><br>
+
+    <!-- Link to Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
