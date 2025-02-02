@@ -107,6 +107,18 @@ def login():
 
     return render_template('login.html', user_login_error=user_login_error)
 
+# ------------------------------------------------------------------------------------------------------------------------
+from flask import redirect, url_for, session
+
+@app.route('/logout', methods=['POST', 'GET'])
+def logout():
+    # Clear all session data
+    session.clear()
+
+    # Redirect to the login page
+    return redirect(url_for('login'))
+
+
 # ---------------------------------------------------------------------------------------------------
 
 # home

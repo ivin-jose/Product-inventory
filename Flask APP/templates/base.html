@@ -45,7 +45,7 @@
                 {{ session['username'] }}
             </a>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                <li><a class="dropdown-item text-danger text-capitalize" href="/logout">Logout</a></li>
+                <li><a class="dropdown-item text-danger text-capitalize" href="{{ url_for('logout')}}">Logout</a></li>
             </ul>
         </div>
         
