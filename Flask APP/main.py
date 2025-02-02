@@ -365,10 +365,43 @@ def product_details(product_id):
 # ---------------------------------------------------------------------------------------------------
 
 # sell product
-@app.route('/sell-product/<id>')
-def sell_product(id):
-    return f"Product with ID {id} is being sold!"
+@app.route('/sell-product/<string:product_id>', methods=['GET', 'POST'])
+def sell_product(product_id):
+    product = Product.query.get(product_id)
+    
+    if not product:
+        return "Product not found", 404
+    
+    variants = ProductVariant.query.filter_by(Product=product_id).all()
+    
+    if request.method == 'POST':
+        variant_id = request.form.get('variant_id')
+        option_id = request.form.get('option_id')
+        quantity_sold = float(request.form.get('quantity'))
+        
+        # Update the quantity for the selected option
+        option = ProductVariantOption.query.get(option_id)
+        
+        if option and quantity_sold <= float(option.quantity):
+            option.quantity = float(option.quantity) - quantity_sold
+            db.session.commit()
+            return redirect(url_for('sell_product', product_id=product_id))
+        else:
+            return "Not enough stock for this option", 400
+    
+    return render_template('sell_product.html', product=product, variants=variants)
 
+@app.route('/get-options/<string:variant_id>')
+def get_variant_options(variant_id):
+    options = ProductVariantOption.query.filter_by(Variant=variant_id).all()
+    options_data = [
+        {
+            'id': option.id,
+            'OptionName': option.OptionName,
+            'quantity': option.quantity
+        } for option in options
+    ]
+    return jsonify(options_data)
 
 
 # ---------------------------------------------------------------------------------------------------

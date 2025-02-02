@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sell Product</title>
+    <!-- Add Bootstrap or your own styling -->
+</head>
+<body>
+    <h1>Sell Product: {{ product.ProductName }}</h1>
+
+    <form method="POST">
+        <!-- Variant Selection -->
+        <label for="variant">Select Variant:</label>
+        <select id="variant" name="variant_id" onchange="fetchOptions()">
+            <option value="">Select a Variant</option>
+            {% for variant in variants %}
+                <option value="{{ variant.id }}">{{ variant.VariantName }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Option Selection -->
+        <label for="option">Select Option:</label>
+        <select id="option" name="option_id" disabled>
+            <option value="">Select an Option</option>
+        </select>
+
+        <!-- Quantity Input -->
+        <label for="quantity">Quantity:</label>
+        <input type="number" id="quantity" name="quantity" min="1" required>
+        
+        <button type="submit">Sell</button>
+    </form>
+
+    <script>
+        // Function to fetch options based on the selected variant
+        function fetchOptions() {
+            const variantId = document.getElementById('variant').value;
+            const optionSelect = document.getElementById('option');
+
+            // Clear previous options
+            optionSelect.innerHTML = '<option value="">Select an Option</option>';
+            
+            if (variantId) {
+                fetch(`/get-options/${variantId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(option => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option.id;
+                            optionElement.textContent = `${option.OptionName} - ${option.quantity} in stock`;
+                            optionSelect.appendChild(optionElement);
+                        });
+                        optionSelect.disabled = false;
+                    });
+            }
+        }
+    </script>
+</body>
+</html>
