@@ -48,7 +48,7 @@
                             {% endfor %}
                         </td>
                         <td>
-                            <a href="/buy-product/{{ product.id }}" class="btn btn-primary">BUY</a>
+                            <a href="{{ url_for('buy_product', product_id=product.id) }}" class="btn btn-primary">BUY</a>
                             <a href="/sell-product/{{ product.id }}" class="btn btn-danger">SELL</a>
                         </td>
                         <td>

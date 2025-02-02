@@ -54,6 +54,7 @@ class ProductVariant(db.Model):
     VariantName = db.Column(db.String(255), nullable=False)
     CreatedDate = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
     UpdatedDate = db.Column(db.DateTime, nullable=True, onupdate=db.func.current_timestamp())
+    
 
 class ProductVariantOption(db.Model):
     __tablename__ = 'product_varient_options'
@@ -404,6 +405,40 @@ def get_variant_options(variant_id):
         } for option in options
     ]
     return jsonify(options_data)
+
+# buy product
+
+
+
+@app.route('/buy-product/<string:product_id>', methods=['GET', 'POST'])
+def buy_product(product_id):
+    product = Product.query.get(product_id)
+    
+    if not product:
+        return "Product not found", 404
+    
+    variants = ProductVariant.query.filter_by(Product=product_id).all()
+    
+    if request.method == 'POST':
+        variant_id = request.form.get('variant_id')
+        option_id = request.form.get('option_id')
+        quantity_bought = float(request.form.get('quantity'))
+        
+        # Get the selected option
+        option = ProductVariantOption.query.get(option_id)
+        
+        if option:
+            option.quantity = float(option.quantity) + quantity_bought  # Increase the quantity
+            db.session.commit()
+            flash("Successfully Bought", "success")
+            return redirect(url_for('buy_product', product_id=product_id))
+        else:
+            flash("Option not found", "danger")
+            return redirect(url_for('buy_product', product_id=product_id))
+    
+    return render_template('buy_product.html', product=product, variants=variants)
+
+
 
 
 # ---------------------------------------------------------------------------------------------------
