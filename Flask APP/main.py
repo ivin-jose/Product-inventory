@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template, session, redirect
+from flask import Flask, jsonify, request, render_template, session, redirect, flash
 from flask_sqlalchemy import SQLAlchemy
 import uuid
 from werkzeug.security import check_password_hash
@@ -385,9 +385,11 @@ def sell_product(product_id):
         if option and quantity_sold <= float(option.quantity):
             option.quantity = float(option.quantity) - quantity_sold
             db.session.commit()
+            flash("Successfully Sold", "success")
             return redirect(url_for('sell_product', product_id=product_id))
         else:
-            return "Not enough stock for this option", 400
+            flash("Not enough stock", "danger")
+            return redirect(url_for('sell_product', product_id=product_id))
     
     return render_template('sell_product.html', product=product, variants=variants)
 
