@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Stock</title>
+    <!-- Add any CSS framework if needed, e.g., Bootstrap -->
+</head>
+<body>
+
+    <br>
+<a href="{{ url_for('add_stock')}}" class="btn btn-info" id="add_stock_btn">Add New Stock</a>
+<br>
+<br>
+
+    {% if products %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Product Image</th>
+                    <th>Variants and Options</th>
+                    <th>Edit/Remove</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>{{ product.product_id }}</td>
+                        <td>{{ product.product_code }}</td>
+                        <td>{{ product.product_name }}</td>
+                        <td><img src="{{ url_for('static', filename='uploads/' + product.product_image[0]) }}" 
+                            alt="{{ product.product_image[0] }}" style="width: 50px; height: 50px;"></td>
+                            <td>
+                        
+                            {% for variant in product.variants %}
+                                <strong>{{ variant.variant_name }}:</strong><br>
+                                {% for option in variant.options %}
+                                    {{ option.option_name }} = {{ option.quantity }}<br>
+                                {% endfor %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <!-- Edit button (you can link it to an edit page or use modals) -->
+                            <a href="/edit-product/{{ product.id }}" class="btn btn-primary">Edit</a>
+                            <a href="/remove-product/{{ product.id }}" class="btn btn-danger">Remove</a>
+                        </td>
+                        <td>
+                            <!-- Details button (redirects to a page with detailed product info) -->
+                            <a href="/product-details/{{ product.id }}" class="btn btn-info">Details</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No products available.</p>
+    {% endif %}
+
+</body>
+</html>
+
+{% endblock %}

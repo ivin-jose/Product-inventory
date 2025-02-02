@@ -1,13 +1,23 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, session, redirect
 from flask_sqlalchemy import SQLAlchemy
 import uuid
-from flask_cors import CORS
+from werkzeug.security import check_password_hash
+from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
+from sqlalchemy.exc import IntegrityError
+
+
+UPLOAD_FOLDER = 'static/uploads'  # Define where images will be stored
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}  # Allowed image types
+
+
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+app.config['SECRET_KEY'] = "is my secret key"
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-
-app = Flask(__name__)
+# DATABASE and TABLES
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory_db.sqlite3'  # Change to your preferred database
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -49,6 +59,7 @@ class ProductVariantOption(db.Model):
     __tablename__ = 'product_varient_options'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     Variant = db.Column(db.String(36), db.ForeignKey('product_varients.id'), nullable=False)
+    quantity = db.Column(db.String(36), db.ForeignKey('product_varients.id'), nullable=False)
     OptionName = db.Column(db.String(255), nullable=False)
     CreatedDate = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
     UpdatedDate = db.Column(db.DateTime, nullable=True, onupdate=db.func.current_timestamp())
@@ -67,21 +78,338 @@ if __name__ == '__main__':
     print("Database and tables created successfully!")
 
 # ------------------------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------
 
-@app.route('/auth-user-login', methods=['POST'])
-def auth_user_login():
-    data = request.get_json()  # Get the username and password from the React app
-    username = data.get('username')
-    password = data.get('password')
+# login page
 
-    # Query the database for the user by username
-    user = AuthUser.query.filter_by(username=username).first()
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    user_login_error = None  # Store error message
 
-    # Check if the user exists and the password matches
-    if user and user.password == password:
-        return jsonify({"message": "Login successful", "redirect": "/model/tables"}), 200
+    if request.method == 'POST':
+        username = request.form.get('user_name')
+        userpassword = request.form.get('user_password')
+
+        # Query user from the database
+        user = AuthUser.query.filter_by(username=username).first()
+
+        # Check if user exists and password is correct
+        if user and check_password_hash(user.password, userpassword):
+            session['loggedin'] = True
+            session['id'] = user.id
+            session['username'] = user.username
+            session['email'] = user.email
+
+            return redirect('/')  
+        else:
+            user_login_error = 'Invalid username or password'
+
+    return render_template('login.html', user_login_error=user_login_error)
+
+# ---------------------------------------------------------------------------------------------------
+
+# home
+@app.route('/')
+def home():
+    if 'loggedin' in session:
+        # Fetch all products
+        products = Product.query.all()
+
+        product_data = []
+        for product in products:
+            # Fetch variants related to the product
+            variants = ProductVariant.query.filter_by(Product=product.id).all()
+            variant_data = []
+
+            for variant in variants:
+                # Fetch variant options related to the variant
+                options = ProductVariantOption.query.filter_by(Variant=variant.id).all()
+                option_data = []
+
+                for option in options:
+                    # Get option name and stock quantity
+                    option_data.append({
+                        "option_name": option.OptionName,
+                        "quantity": option.quantity  # Fetch the quantity field
+                    })
+
+                variant_data.append({
+                    "variant_name": variant.VariantName,
+                    "options": option_data
+                })
+
+            # Fetch product images
+            product_images = ProductImage.query.filter_by(Product=product.id).all()
+            image_urls = [img.ImageURL for img in product_images]
+
+            # Fetch created user and created date from the product (if applicable)
+            created_user = product.CreatedUser  # Assuming 'CreatedUser' stores the user ID of the product creator
+            created_date = product.CreatedDate.strftime('%Y-%m-%d %H:%M:%S') if product.CreatedDate else None
+
+            product_data.append({
+                "id":product.id,
+                "product_id": product.ProductID,
+                "product_code": product.ProductCode,
+                "product_name": product.ProductName,
+                "product_image": image_urls,
+                "variants": variant_data,
+                "created_user": created_user,  # Add this field to display the creator's user ID
+                "created_date": created_date  # Add this field to display the creation date
+            })
+
+        return render_template('home.html', products=product_data)
     else:
-        return jsonify({"message": "Invalid username or password"}), 401
+        return render_template('login.html')
+
+
+# ---------------------------------------------------------------------------------------------------
+
+# adding stock
+
+# Allowed image extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    """Check if the uploaded file is an allowed image format"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/add-stock', methods=['POST', 'GET'])
+def add_stock():
+    if 'loggedin' in session:  # Ensure user is logged in
+        if request.method == 'POST':
+            product_id = request.form.get('product_id')
+            product_code = request.form.get('product_code')
+            product_name = request.form.get('product_name')
+            product_image = request.files.get('product_image')
+
+            variant_names = request.form.getlist('variant_name[]')
+
+            # Collect variant options and stock quantities dynamically
+            variant_options = []
+            variant_stocks = []
+            for i in range(len(variant_names)):
+                options = request.form.getlist(f'variant_option_{i}[]')
+                stocks = request.form.getlist(f'variant_stock_{i}[]')  # Collect stock quantities
+                variant_options.append(options)
+                variant_stocks.append(stocks)
+
+            # Save the image if it exists
+            image_filename = None
+            if product_image and allowed_file(product_image.filename):
+                filename = secure_filename(product_image.filename)
+                image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                product_image.save(image_path)
+                image_filename = filename  # Store only the filename in DB
+
+            if product_code:
+                try:
+                    # **CHECK IF PRODUCT CODE ALREADY EXISTS**
+                    existing_product = Product.query.filter_by(ProductCode=product_code).first()
+                    if existing_product:
+                        database_error = f"❌ Product with code '{product_code}' already exists."
+                        return render_template('add_stock.html', database_error=database_error)
+
+                    # Step 1: Insert Product
+                    new_product = Product(
+                        id=str(uuid.uuid4()),
+                        ProductID=product_id,
+                        ProductCode=product_code,
+                        ProductName=product_name,
+                        ProductImage=image_filename,
+                        CreatedUser=session.get('username'),
+                        CreatedDate=datetime.now()
+                    )
+                    db.session.add(new_product)
+                    db.session.commit()  # Commit to get product ID
+
+                    # Step 2: Insert Variants
+                    for index, variant_name in enumerate(variant_names):
+                        variant = ProductVariant(
+                            id=str(uuid.uuid4()),
+                            Product=new_product.id,  # Foreign Key
+                            VariantName=variant_name
+                        )
+                        db.session.add(variant)
+                        db.session.commit()  # Commit to get variant ID
+
+                        # Step 3: Insert Variant Options and their Stock Quantities
+                        for option, stock in zip(variant_options[index], variant_stocks[index]):
+                            variant_option = ProductVariantOption(
+                                id=str(uuid.uuid4()),
+                                Variant=variant.id,  # Foreign Key
+                                OptionName=option,
+                                quantity=int(stock) if stock.isdigit() else 0  # Convert stock to int
+                            )
+                            db.session.add(variant_option)
+                            db.session.commit()  # Commit to get variant option ID
+
+                    # Step 4: Insert Product Image (if available)
+                    if image_filename:
+                        product_image_entry = ProductImage(
+                            id=str(uuid.uuid4()),
+                            Product=new_product.id,
+                            ImageURL=image_filename
+                        )
+                        db.session.add(product_image_entry)
+                        db.session.commit()
+
+                    message = "✅ Successfully Added Product!"
+                    return render_template('add_stock.html', message=message)
+
+                except IntegrityError:
+                    db.session.rollback()  # **Rollback to avoid partial insertions**
+                    database_error = f"❌ Product with code '{product_code}' already exists. Try a different code."
+                    return render_template('add_stock.html', database_error=database_error)
+
+                except Exception as e:
+                    db.session.rollback()  # Ensure rollback in case of any other failure
+                    database_error = f"❌ Adding Failed: {str(e)}"
+                    return render_template('add_stock.html', database_error=database_error)
+
+        return render_template('add_stock.html')  # Render form on GET request
+    else:
+        return render_template('login.html')  # Redirect to login if not logged in
+
+
+
+# ---------------------------------------------------------------------------------------------------
+
+
+# stock details
+
+@app.route('/product-details/<product_id>')
+def product_details(product_id):
+    if 'loggedin' in session:
+        try:
+            # Fetch the product based on UUID (id)
+            product = Product.query.filter_by(id=product_id).first()  # Query to get the Product object by its UUID (id)
+
+            if not product:
+                return f"Product with ID {product_id} not found", 404  # Return a 404 error if the product is not found
+
+            # Fetch all details of the product, including its columns
+            product_details = {
+                "Product ID": product.id,
+                "Product Code": product.ProductCode,
+                "Product Name": product.ProductName,
+                "Product Image": product.ProductImage,
+                "Created Date": product.CreatedDate,
+                "Updated Date": product.UpdatedDate,
+                "Created User": product.CreatedUser,
+                "Is Favourite": product.IsFavourite,
+                "Active": product.Active,
+                "HSN Code": product.HSNCode,
+                "Total Stock": product.TotalStock
+            }
+
+            # Initialize a variable to track the total quantity
+            total_quantity = 0
+
+            # Fetch variants related to the product
+            variants = ProductVariant.query.filter_by(Product=product.id).all()
+            variant_data = []
+            for variant in variants:
+                # For each variant, fetch the options and their stock quantities
+                options = ProductVariantOption.query.filter_by(Variant=variant.id).all()
+                option_data = []
+                for option in options:
+                    # Ensure quantity is an integer before adding
+                    option_quantity = int(option.quantity) if option.quantity else 0  # Convert quantity to int if it's not empty
+                    option_data.append({
+                        "option_name": option.OptionName,
+                        "quantity": option_quantity  # Option quantity
+                    })
+                    total_quantity += option_quantity  # Accumulate the total quantity
+
+                # Append variant with options and their quantities
+                variant_data.append({
+                    "variant_name": variant.VariantName,
+                    "options": option_data,
+                    "Variant ID": variant.id
+                })
+
+            # Fetch product images (if any)
+            product_images = ProductImage.query.filter_by(Product=product.id).all()
+            image_urls = [img.ImageURL for img in product_images]
+
+            # Add total quantity to the product details
+            product_details["Total Quantity"] = total_quantity
+
+            # Render the template and pass all the fetched data
+            return render_template('product_details.html', 
+                                   product=product_details, 
+                                   variants=variant_data, 
+                                   images=image_urls)
+
+        except Exception as e:
+            print(f"Error: {e}")
+            return f"Error retrieving product details: {e}", 500  # Return error if something goes wrong
+    
+    else:
+        return redirect('/login')  # Redirect to login page if not logged in
+
+
+
+# ---------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------
+
+
+# view stock 
+@app.route('/view-stock')
+def view_stock():
+    if 'loggedin' in session:
+        # Fetch all products
+        products = Product.query.all()
+
+        product_data = []
+        for product in products:
+            # Fetch variants related to the product
+            variants = ProductVariant.query.filter_by(Product=product.id).all()
+            variant_data = []
+
+            for variant in variants:
+                # Fetch variant options related to the variant
+                options = ProductVariantOption.query.filter_by(Variant=variant.id).all()
+                option_data = []
+
+                for option in options:
+                    # Get option name and stock quantity
+                    option_data.append({
+                        "option_name": option.OptionName,
+                        "quantity": option.quantity  # Fetch the quantity field
+                    })
+
+                variant_data.append({
+                    "variant_name": variant.VariantName,
+                    "options": option_data
+                })
+
+            # Fetch product images
+            product_images = ProductImage.query.filter_by(Product=product.id).all()
+            image_urls = [img.ImageURL for img in product_images]
+
+            # Fetch created user and created date from the product (if applicable)
+            created_user = product.CreatedUser  # Assuming 'CreatedUser' stores the user ID of the product creator
+            created_date = product.CreatedDate.strftime('%Y-%m-%d %H:%M:%S') if product.CreatedDate else None
+
+            product_data.append({
+                "id":product.id,
+                "product_id": product.ProductID,
+                "product_code": product.ProductCode,
+                "product_name": product.ProductName,
+                "product_image": image_urls,
+                "variants": variant_data,
+                "created_user": created_user,  # Add this field to display the creator's user ID
+                "created_date": created_date  # Add this field to display the creation date
+            })
+
+        return render_template('view_stock.html', products=product_data)
+    else:
+        return render_template('login.html')
+
+
     
 
 # ------------------------------------------------------------------------------------------------------------------------

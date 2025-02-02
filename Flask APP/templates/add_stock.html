@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+  #varient_name {
+    font-weight: bold;
+    margin-right: 20px;
+  }
+  .option-group {
+    margin-bottom: 20px;
+  }
+  .alert {
+    position: fixed;
+    top: 70%; /* 80% from the top of the screen */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Adjust to perfectly center */
+    width: 30%; /* Set the width to 50% of the screen */
+    z-index: 1050; /* Ensure it appears above other content */
+    text-align: center; /* Center the text inside */
+    margin-top: 0; /* Remove margin-top to avoid spacing above the alert */
+}
+
+</style>
+<body>
+    {% if database_error %}
+    <center>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <strong>ERROR</strong> {{ database_error }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    </center>
+    {% endif %}
+
+    {% if message %}
+    <center>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <strong>SUCCESS</strong> {{ message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    </center>
+    {% endif %}
+
+    <div class="container mt-5" style="width: 50%;">
+        <h2 class="mb-4">Add Product</h2>
+        
+        <form id="addProductForm" action="{{ url_for('add_stock') }}" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+              <label>Product ID</label>
+              <input type="text" class="form-control" name="product_id" required>
+            </div>
+          
+            <div class="form-group">
+              <label>Product Code</label>
+              <input type="text" class="form-control" name="product_code" required>
+            </div>
+          
+            <div class="form-group">
+              <label>Product Name</label>
+              <input type="text" class="form-control" name="product_name" required>
+            </div>
+          
+            <div class="form-group">
+              <label>Product Image</label>
+              <input type="file" class="form-control" name="product_image">
+            </div>
+          
+            <!-- Variant section -->
+            <div id="variants">
+              <div class="variant-group">
+                <label id="varient_name">Variant Name</label>
+                <input type="text" class="form-control" name="variant_name[]" required>
+                <br>
+                <label>Options</label> <button type="button" class="btn btn-primary add-option">+</button><br><br>
+                <div class="variant-options">
+                  <div class="option-group">
+                    <input type="text" class="form-control" name="variant_option_0[]" placeholder="Option Name" required>
+                    <input type="number" class="form-control" name="variant_stock_0[]" placeholder="Stock Quantity" required>
+                  </div>
+                </div>
+                
+              </div>
+            </div>
+          
+            <br><br><button type="button" class="btn btn-success" id="addVariant">Add Variant</button><br><br>
+          
+            <center><button type="submit" class="btn btn-primary">Submit</button></center><br><br><br>
+        </form>
+    </div>
+
+    <script>
+      document.getElementById("addVariant").addEventListener("click", function () {
+          let variantCount = document.querySelectorAll(".variant-group").length;
+  
+          let variantHTML = `
+          <div class="variant-group">
+              <br>
+              <label id="varient_name">Variant Name</label><button type="button" class="btn btn-danger remove-variant">Remove Variant</button> <br><br>
+              <input type="text" class="form-control" name="variant_name[]" required>
+              <br>
+              <label>Options</label> <button type="button" class="btn btn-primary add-option">+</button>
+              
+              <div class="variant-options">
+                  <div class="option-group">
+                      <input type="text" class="form-control" name="variant_option_${variantCount}[]" placeholder="Option Name" required>
+                      <input type="number" class="form-control" name="variant_stock_${variantCount}[]" placeholder="Stock Quantity" required>
+                      <button type="button" class="btn btn-danger remove-option">Remove Option</button>
+                  </div><br><br>
+              </div>
+          </div>
+          `;
+  
+          document.getElementById("variants").insertAdjacentHTML("beforeend", variantHTML);
+      });
+  
+      // Add Option Button
+      document.addEventListener("click", function (event) {
+          if (event.target.classList.contains("add-option")) {
+              let variantGroup = event.target.closest(".variant-group");
+              let variantCount = [...document.querySelectorAll(".variant-group")].indexOf(variantGroup);
+  
+              let optionHTML = `
+              <div class="option-group">
+                  <input type="text" class="form-control" name="variant_option_${variantCount}[]" placeholder="Option Name" required>
+                  <input type="number" class="form-control" name="variant_stock_${variantCount}[]" placeholder="Stock Quantity" required>
+                  <button type="button" class="btn btn-danger remove-option">Remove Option</button>
+              </div>
+              `;
+  
+              variantGroup.querySelector(".variant-options").insertAdjacentHTML("beforeend", optionHTML);
+          }
+      });
+  
+      // Remove Option Button
+      document.addEventListener("click", function (event) {
+          if (event.target.classList.contains("remove-option")) {
+              let optionGroup = event.target.closest(".option-group");
+              optionGroup.remove();
+          }
+      });
+  
+      // Remove Variant Button
+      document.addEventListener("click", function (event) {
+          if (event.target.classList.contains("remove-variant")) {
+              let variantGroup = event.target.closest(".variant-group");
+              variantGroup.remove();
+          }
+      });
+  </script>
+
+<script>
+    document.getElementById("addProductForm").addEventListener("submit", function (event) {
+        let fileInput = document.querySelector('input[name="product_image"]');
+        let allowedExtensions = ["png", "jpg", "jpeg", "gif", "webp"];
+  
+        if (fileInput.files.length > 0) {
+            let fileName = fileInput.files[0].name;
+            let fileExtension = fileName.split('.').pop().toLowerCase();
+  
+            if (!allowedExtensions.includes(fileExtension)) {
+                event.preventDefault(); // Prevent form submission
+                showErrorMessage("Extension of image not allowed");
+            }
+        }
+    });
+  
+    function showErrorMessage(message) {
+        let alertDiv = document.createElement("div");
+        alertDiv.className = "alert alert-warning alert-dismissible fade show error-popup";
+        alertDiv.role = "alert";
+        alertDiv.innerHTML = `  
+            <strong>ERROR</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        document.body.appendChild(alertDiv); // Show the error at the bottom of the page
+    }
+</script>
+
+<style>
+    .error-popup {
+        position: fixed;
+        top: 80%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 30%;
+        z-index: 1050; /* Ensure it's above other content */
+        text-align: center;
+    }
+</style>
+
+
+
+  
+</body>
+</html>
+{% endblock %}

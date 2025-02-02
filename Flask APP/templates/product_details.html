@@ -1,0 +1,29 @@
+<h1>Product Details</h1>
+<div>
+    <h2>Product Information</h2>
+    <ul>
+        {% for key, value in product.items() %}
+            <li>{{ key }}: {{ value }}</li>
+        {% endfor %}
+        <li><strong>Total Quantity:</strong> {{ product['Total Quantity'] }}</li> <!-- Display total quantity -->
+    </ul>
+</div>
+
+<div>
+    <h2>Variants</h2>
+    {% for variant in variants %}
+        <p><strong>{{ variant.variant_name }}</strong> (Variant ID: {{ variant['Variant ID'] }})</p>
+        <ul>
+            {% for option in variant.options %}
+                <li>{{ option.option_name }} - Quantity: {{ option.quantity }}</li> <!-- Option and quantity -->
+            {% endfor %}
+        </ul>
+    {% endfor %}
+</div>
+
+<div>
+    <h2>Product Images</h2>
+    {% for image in images %}
+        <img src="{{ url_for('static', filename='uploads/image') }}" alt="Product Image" width="200">
+    {% endfor %}
+</div>

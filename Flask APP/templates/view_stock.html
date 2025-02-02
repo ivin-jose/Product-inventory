@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Stock</title>
+    <!-- Add any CSS framework if needed, e.g., Bootstrap -->
+</head>
+<body>
+
+    <h1>Product Stock</h1>
+
+    {% if products %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Product Image</th>
+                    <th>Variants and Options</th>
+                    <th>Edit/Remove</th>
+                    <th>Details</th>
+                    <th>Created By</th>
+                    <th>Created On</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>{{ product.product_id }}</td>
+                        <td>{{ product.product_code }}</td>
+                        <td>{{ product.product_name }}</td>
+                        <td><img src="{{ url_for('static', filename='uploads/' + product.product_image[0]) }}" alt="Product Image" width="100" height="100">
+                        </td>
+                        <td>
+                            {% for variant in product.variants %}
+                                <strong>{{ variant.variant_name }}:</strong><br>
+                                {% for option in variant.options %}
+                                    {{ option.option_name }} = {{ option.quantity }}<br>
+                                {% endfor %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <!-- Edit button (you can link it to an edit page or use modals) -->
+                            <a href="/edit-product/{{ product.product_id }}" class="btn btn-primary">Edit</a>
+                            <a href="/remove-product/{{ product.product_id }}" class="btn btn-danger">Remove</a>
+                        </td>
+                        <td>
+                            <!-- Details button (redirects to a page with detailed product info) -->
+                            <a href="{{ url_for('product_details', product_id=product.id) }}" class="btn btn-info">Details</a>
+                        </td>
+                        <td>{{ product.created_user }}</td> <!-- Created By -->
+                        <td>{{ product.created_date }}</td> <!-- Created On -->
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No products available.</p>
+    {% endif %}
+
+</body>
+</html>
+{% endblock %}
