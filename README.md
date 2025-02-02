@@ -31,10 +31,14 @@ This system ensures smooth product management and helps maintain accurate record
    
 5. Run the application:
    
-   at folder 'FLASK APP' run
+   at folder 'FLASK APP'
+
+   run commands below
 
    export FLASK_ENV=development
+   
    export FLASK_APP=main.py
+   
    flask run
 
  📝 Usage
