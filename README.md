@@ -23,7 +23,7 @@ This system ensures smooth product management and helps maintain accurate record
    
    git clone https://github.com/ivin-jose/Product-inventory.git
 
-2. Navigate to the project directory (Product_inventoryFLASK APP):
+2. Navigate to the project directory (Product_inventory / FLASK APP):
   
 3. Install dependencies:
    
